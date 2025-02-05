@@ -181,7 +181,7 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 			const decorationData = {
 				name: name,
 				description: description,
-				url: this.getProxiedUrl(userAvatarDecoration.url),
+				url: this.getProxiedUrl(userAvatarDecoration.url, 'avatar'),
 				remoteId: userAvatarDecorationId,
 				host: userHost,
 			};
