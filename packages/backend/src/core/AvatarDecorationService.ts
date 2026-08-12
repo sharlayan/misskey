@@ -6,10 +6,11 @@
 import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { IsNull } from 'typeorm';
-import { UserDetailedNotMe } from 'misskey-js/entities.js';
 import type { AvatarDecorationsRepository, InstancesRepository, UsersRepository, MiAvatarDecoration, MiUser } from '@/models/_.js';
+import type Logger from '@/logger.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import { MemorySingleCache } from '@/misc/cache.js';
@@ -19,8 +20,100 @@ import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { appendQuery, query } from '@/misc/prelude/url.js';
 import type { Config } from '@/config.js';
 
+type RemoteAvatarDecoration = {
+	id: string;
+	name: string;
+	description: string;
+	url: string;
+	category: string | null;
+};
+
+type RemoteUserAvatarDecoration = {
+	id: string;
+	angle?: number;
+	flipH?: boolean;
+	offsetX?: number;
+	offsetY?: number;
+};
+
+const MAX_USER_AVATAR_DECORATIONS = 16;
+const MAX_REMOTE_DECORATION_CATALOG_ITEMS = 4096;
+
+function isValidString(value: unknown, minLength: number, maxLength: number): value is string {
+	return typeof value === 'string' && value.length >= minLength && value.length <= maxLength;
+}
+
+function isValidHttpUrl(value: unknown): value is string {
+	if (!isValidString(value, 1, 768)) return false;
+	try {
+		return ['http:', 'https:'].includes(new URL(value).protocol);
+	} catch {
+		return false;
+	}
+}
+
+function optionalNumber(value: unknown, minimum: number, maximum: number): number | undefined | null {
+	if (value == null) return undefined;
+	return typeof value === 'number' && Number.isFinite(value) && value >= minimum && value <= maximum ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+function parseRemoteAvatarDecorations(value: unknown): RemoteAvatarDecoration[] | null {
+	if (!Array.isArray(value) || value.length > MAX_REMOTE_DECORATION_CATALOG_ITEMS) return null;
+
+	const result: RemoteAvatarDecoration[] = [];
+	const ids = new Set<string>();
+	for (const item of value) {
+		if (
+			!isRecord(item) ||
+			!isValidString(item.id, 1, 32) ||
+			!isValidString(item.name, 1, 256) ||
+			!isValidString(item.description, 0, 2048) ||
+			!isValidHttpUrl(item.url) ||
+			!(item.category == null || isValidString(item.category, 0, 128)) ||
+			ids.has(item.id)
+		) return null;
+		ids.add(item.id);
+		result.push({
+			id: item.id,
+			name: item.name,
+			description: item.description,
+			url: item.url,
+			category: item.category ?? null,
+		});
+	}
+	return result;
+}
+
+function parseRemoteUserAvatarDecorations(value: unknown): RemoteUserAvatarDecoration[] | null {
+	if (!Array.isArray(value) || value.length > MAX_USER_AVATAR_DECORATIONS) return null;
+
+	const result: RemoteUserAvatarDecoration[] = [];
+	const ids = new Set<string>();
+	for (const item of value) {
+		if (!isRecord(item) || !isValidString(item.id, 1, 32) || !isValidHttpUrl(item.url) || ids.has(item.id)) return null;
+		const angle = optionalNumber(item.angle, -0.5, 0.5);
+		const offsetX = optionalNumber(item.offsetX, -0.25, 0.25);
+		const offsetY = optionalNumber(item.offsetY, -0.25, 0.25);
+		if (angle === null || offsetX === null || offsetY === null || !(item.flipH == null || typeof item.flipH === 'boolean')) return null;
+		ids.add(item.id);
+		result.push({
+			id: item.id,
+			angle,
+			flipH: item.flipH ?? undefined,
+			offsetX,
+			offsetY,
+		});
+	}
+	return result;
+}
+
 @Injectable()
 export class AvatarDecorationService implements OnApplicationShutdown {
+	private logger: Logger;
 	public cache: MemorySingleCache<MiAvatarDecoration[]>;
 	public cacheWithRemote: MemorySingleCache<MiAvatarDecoration[]>;
 
@@ -44,9 +137,11 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 		private moderationLogService: ModerationLogService,
 		private globalEventService: GlobalEventService,
 		private httpRequestService: HttpRequestService,
+		private loggerService: LoggerService,
 	) {
-		this.cache = new MemorySingleCache<MiAvatarDecoration[]>(1000 * 60 * 30); // 30s
-		this.cacheWithRemote = new MemorySingleCache<MiAvatarDecoration[]>(1000 * 60 * 30);
+		this.logger = this.loggerService.getLogger('avatar-decoration');
+		this.cache = new MemorySingleCache<MiAvatarDecoration[]>(1000 * 60 * 30); // 30m
+		this.cacheWithRemote = new MemorySingleCache<MiAvatarDecoration[]>(1000 * 60 * 30); // 30m
 
 		this.redisForSub.on('message', this.onMessage);
 	}
@@ -62,6 +157,7 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 				case 'avatarDecorationUpdated':
 				case 'avatarDecorationDeleted': {
 					this.cache.delete();
+					this.cacheWithRemote.delete();
 					break;
 				}
 				default:
@@ -76,6 +172,8 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 			id: this.idService.gen(),
 			...options,
 		});
+		this.cache.delete();
+		this.cacheWithRemote.delete();
 
 		this.globalEventService.publishInternalEvent('avatarDecorationCreated', created);
 
@@ -98,6 +196,8 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 			updatedAt: date,
 			...params,
 		});
+		this.cache.delete();
+		this.cacheWithRemote.delete();
 
 		const updated = await this.avatarDecorationsRepository.findOneByOrFail({ id: avatarDecoration.id });
 		this.globalEventService.publishInternalEvent('avatarDecorationUpdated', updated);
@@ -123,89 +223,96 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 	}
 
 	@bindThis
-	public async remoteUserUpdate(user: MiUser) {
-		const userHost = user.host ?? '';
-		const instance = await this.instancesRepository.findOneBy({ host: userHost });
-		const userHostUrl = `https://${user.host}`;
-		const showUserApiUrl = `${userHostUrl}/api/users/show`;
-
-		if (!['misskey', 'cherrypick', 'sharkey'].includes(<string>instance?.softwareName)) return;
-
-		const res = await this.httpRequestService.send(showUserApiUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ 'username': user.username }),
-		});
-		if (!res.ok) {
-			return;
+	private async requestRemoteJson(url: string, body: object): Promise<unknown | null> {
+		try {
+			const response = await this.httpRequestService.send(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) return null;
+			return await response.json();
+		} catch (err) {
+			this.logger.warn(`Failed to fetch remote avatar decorations from ${url}: ${err}`);
+			return null;
 		}
+	}
 
-		const userData = await res.json() as Partial<UserDetailedNotMe> | undefined;
-		const userAvatarDecorations = userData?.avatarDecorations;
+	@bindThis
+	private async syncRemoteDecoration(host: string, userDecoration: RemoteUserAvatarDecoration, remoteDecoration: RemoteAvatarDecoration): Promise<MiAvatarDecoration> {
+		const proxiedUrl = this.getProxiedUrl(remoteDecoration.url, 'avatar');
+		if (proxiedUrl.length > 1024) throw new Error('The proxied avatar decoration URL is too long');
+		const params = {
+			name: remoteDecoration.name,
+			description: remoteDecoration.description,
+			url: proxiedUrl,
+			rawUrl: remoteDecoration.url,
+			category: remoteDecoration.category,
+			remoteId: userDecoration.id,
+			host,
+		};
 
-		if (!userAvatarDecorations || userAvatarDecorations.length === 0) {
-			const updates = {} as Partial<MiUser>;
-			updates.avatarDecorations = [];
-			await this.usersRepository.update({ id: user.id }, updates);
-			return;
-		}
-
-		const instanceHost = instance.host;
-		const decorationApiUrl = `https://${instanceHost}/api/get-avatar-decorations`;
-		const allDecoRes = await this.httpRequestService.send(decorationApiUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({}),
-		});
-		if (!allDecoRes.ok) {
-			return;
-		}
-		const remoteDecorations = (await allDecoRes.json() as Partial<MiAvatarDecoration[]> | undefined) ?? [];
-		const updates = {} as Partial<MiUser>;
-		updates.avatarDecorations = [];
-		for (const userAvatarDecoration of userAvatarDecorations) {
-			let name;
-			let description;
-			const userAvatarDecorationId = userAvatarDecoration.id;
-			for (const remoteDecoration of remoteDecorations) {
-				if (remoteDecoration?.id === userAvatarDecorationId) {
-					name = remoteDecoration.name;
-					description = remoteDecoration.description;
-					break;
-				}
+		let existing = await this.avatarDecorationsRepository.findOneBy({ host, remoteId: userDecoration.id });
+		if (existing == null) {
+			try {
+				return await this.create(params);
+			} catch (err) {
+				existing = await this.avatarDecorationsRepository.findOneBy({ host, remoteId: userDecoration.id });
+				if (existing == null) throw err;
 			}
-			const existingDecoration = await this.avatarDecorationsRepository.findOneBy({
-				host: userHost,
-				remoteId: userAvatarDecorationId,
-			});
-			const decorationData = {
-				name: name,
-				description: description,
-				url: this.getProxiedUrl(userAvatarDecoration.url, 'avatar'),
-				remoteId: userAvatarDecorationId,
-				host: userHost,
-			};
-			if (existingDecoration == null) {
-				await this.create(decorationData);
-				this.cacheWithRemote.delete();
-			} else {
-				await this.update(existingDecoration.id, decorationData);
-				this.cacheWithRemote.delete();
-			}
-			const findDecoration = await this.avatarDecorationsRepository.findOneBy({
-				host: userHost,
-				remoteId: userAvatarDecorationId,
-			});
-
-			updates.avatarDecorations.push({
-				id: findDecoration?.id ?? '',
-				angle: userAvatarDecoration.angle ?? 0,
-				flipH: userAvatarDecoration.flipH ?? false,
-				offsetX: userAvatarDecoration.offsetX ?? 0,
-				offsetY: userAvatarDecoration.offsetY ?? 0,
-			});
 		}
-		await this.usersRepository.update({ id: user.id }, updates);
+
+		await this.update(existing.id, params);
+		return await this.avatarDecorationsRepository.findOneByOrFail({ id: existing.id });
+	}
+
+	@bindThis
+	public async remoteUserUpdate(user: MiUser): Promise<void> {
+		if (user.host == null) return;
+
+		const instance = await this.instancesRepository.findOneBy({ host: user.host });
+		const softwareName = instance?.softwareName?.toLowerCase();
+		if (softwareName == null || !['misskey', 'cherrypick', 'sharkey'].includes(softwareName)) return;
+
+		const hostUrl = `https://${user.host}`;
+		const userData = await this.requestRemoteJson(`${hostUrl}/api/users/show`, { username: user.username });
+		if (!isRecord(userData)) return;
+
+		const userAvatarDecorations = parseRemoteUserAvatarDecorations(userData.avatarDecorations);
+		if (userAvatarDecorations == null) return;
+		if (userAvatarDecorations.length === 0) {
+			await this.usersRepository.update({ id: user.id, isDeleted: false }, { avatarDecorations: [] });
+			return;
+		}
+
+		const remoteDecorationData = await this.requestRemoteJson(`${hostUrl}/api/get-avatar-decorations`, {});
+		const parsedRemoteDecorations = parseRemoteAvatarDecorations(remoteDecorationData);
+		if (parsedRemoteDecorations == null) return;
+		const remoteDecorations = new Map(parsedRemoteDecorations.map(decoration => [decoration.id, decoration]));
+		if (userAvatarDecorations.some(decoration => !remoteDecorations.has(decoration.id))) return;
+		const avatarDecorations: MiUser['avatarDecorations'] = [];
+		let synchronizationFailed = false;
+
+		for (const userDecoration of userAvatarDecorations) {
+			const remoteDecoration = remoteDecorations.get(userDecoration.id);
+			if (remoteDecoration == null) continue;
+			try {
+				const decoration = await this.syncRemoteDecoration(user.host, userDecoration, remoteDecoration);
+				avatarDecorations.push({
+					id: decoration.id,
+					angle: userDecoration.angle ?? 0,
+					flipH: userDecoration.flipH ?? false,
+					offsetX: userDecoration.offsetX ?? 0,
+					offsetY: userDecoration.offsetY ?? 0,
+				});
+			} catch (err) {
+				this.logger.warn(`Failed to synchronize avatar decoration ${userDecoration.id} from ${user.host}: ${err}`);
+				synchronizationFailed = true;
+			}
+		}
+
+		if (synchronizationFailed) return;
+		await this.usersRepository.update({ id: user.id, isDeleted: false }, { avatarDecorations });
 	}
 
 	@bindThis
@@ -213,6 +320,8 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 		const avatarDecoration = await this.avatarDecorationsRepository.findOneByOrFail({ id });
 
 		await this.avatarDecorationsRepository.delete({ id: avatarDecoration.id });
+		this.cache.delete();
+		this.cacheWithRemote.delete();
 		this.globalEventService.publishInternalEvent('avatarDecorationDeleted', avatarDecoration);
 
 		if (moderator) {
@@ -229,11 +338,47 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 			this.cache.delete();
 			this.cacheWithRemote.delete();
 		}
-		if (!withRemote) {
-			return this.cache.fetch(() => this.avatarDecorationsRepository.find({ where: { host: IsNull() } }));
-		} else {
-			return this.cacheWithRemote.fetch(() => this.avatarDecorationsRepository.find());
+		return withRemote
+			? this.cacheWithRemote.fetch(() => this.avatarDecorationsRepository.find())
+			: this.cache.fetch(() => this.avatarDecorationsRepository.find({ where: { host: IsNull() } }));
+	}
+
+	@bindThis
+	public async getRawUrl(decoration: MiAvatarDecoration): Promise<string | null> {
+		if (decoration.host == null) return decoration.rawUrl;
+		if (decoration.remoteId == null) return null;
+
+		const remoteData = await this.requestRemoteJson(`https://${decoration.host}/api/get-avatar-decorations`, {});
+		const remoteDecorations = parseRemoteAvatarDecorations(remoteData);
+		if (remoteDecorations == null) return null;
+		const remoteDecoration = remoteDecorations.find(item => item.id === decoration.remoteId);
+		if (remoteDecoration == null) return null;
+
+		const proxiedUrl = this.getProxiedUrl(remoteDecoration.url, 'avatar');
+		if (proxiedUrl.length > 1024) return null;
+		if (
+			decoration.name !== remoteDecoration.name ||
+			decoration.description !== remoteDecoration.description ||
+			decoration.url !== proxiedUrl ||
+			decoration.rawUrl !== remoteDecoration.url ||
+			decoration.category !== remoteDecoration.category
+		) {
+			await this.update(decoration.id, {
+				name: remoteDecoration.name,
+				description: remoteDecoration.description,
+				url: proxiedUrl,
+				rawUrl: remoteDecoration.url,
+				category: remoteDecoration.category,
+			});
 		}
+		return remoteDecoration.url;
+	}
+
+	@bindThis
+	public async isRemoteDecorationImported(rawUrl: string): Promise<boolean> {
+		return await this.avatarDecorationsRepository.exists({
+			where: { host: IsNull(), rawUrl },
+		});
 	}
 
 	@bindThis

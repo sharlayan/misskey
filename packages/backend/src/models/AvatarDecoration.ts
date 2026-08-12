@@ -3,10 +3,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Entity, PrimaryColumn, Index, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { id } from './util/id.js';
 
 @Entity('avatar_decoration')
+@Index('IDX_avatar_decoration_host_remote_id', ['host', 'remoteId'], {
+	unique: true,
+	where: '"host" IS NOT NULL AND "remoteId" IS NOT NULL',
+})
+@Index('IDX_avatar_decoration_local_raw_url', ['rawUrl'], {
+	unique: true,
+	where: '"host" IS NULL AND "rawUrl" IS NOT NULL',
+})
 export class MiAvatarDecoration {
 	@PrimaryColumn(id())
 	public id: string;
@@ -51,4 +59,9 @@ export class MiAvatarDecoration {
 		length: 128, nullable: true,
 	})
 	public host: string | null;
+
+	@Column('text', {
+		nullable: true,
+	})
+	public rawUrl: string | null;
 }

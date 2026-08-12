@@ -461,7 +461,10 @@ export class ApPersonService implements OnModuleInit {
 		// ハッシュタグ更新
 		this.hashtagService.updateUsertags(user, tags);
 
-		await this.avatarDecorationService.remoteUserUpdate(user);
+		const userUri = user.uri;
+		await this.avatarDecorationService.remoteUserUpdate(user).catch(err => {
+			this.logger.warn(`Failed to synchronize avatar decorations for ${userUri}: ${err}`);
+		});
 
 		//#region アバターとヘッダー画像をフェッチ
 		try {
@@ -606,7 +609,9 @@ export class ApPersonService implements OnModuleInit {
 	if (!user) {
 		return 'skip';
 	}
-	await this.avatarDecorationService.remoteUserUpdate(user);
+	await this.avatarDecorationService.remoteUserUpdate(user).catch(err => {
+		this.logger.warn(`Failed to synchronize avatar decorations for ${user.uri}: ${err}`);
+	});
 
 	if (person.publicKey) {
 		await this.userPublickeysRepository.update({ userId: exist.id }, {

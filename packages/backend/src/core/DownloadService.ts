@@ -34,7 +34,10 @@ export class DownloadService {
 	}
 
 	@bindThis
-	public async downloadUrl(url: string, path: string): Promise<{
+	public async downloadUrl(url: string, path: string, options: {
+		isLocalAddressAllowed?: boolean;
+		followRedirect?: boolean;
+	} = {}): Promise<{
 		filename: string;
 	}> {
 		this.logger.info(`Downloading ${chalk.cyan(url)} to ${chalk.cyanBright(path)} ...`);
@@ -60,9 +63,10 @@ export class DownloadService {
 				request: operationTimeout,	// whole operation timeout
 			},
 			agent: {
-				http: this.httpRequestService.getAgentForHttp(urlObj, true),
-				https: this.httpRequestService.getAgentForHttps(urlObj, true),
+				http: this.httpRequestService.getAgentForHttp(urlObj, options.isLocalAddressAllowed ?? true),
+				https: this.httpRequestService.getAgentForHttps(urlObj, options.isLocalAddressAllowed ?? true),
 			},
+			followRedirect: options.followRedirect ?? true,
 			http2: false,	// default
 			retry: {
 				limit: 0,
