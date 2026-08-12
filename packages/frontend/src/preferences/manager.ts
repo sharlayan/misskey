@@ -392,6 +392,18 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 
 		const records = this.profile.preferences[key];
 
+		// 新しい設定キーの場合、初期化されていない可能性がある
+		if (!records || records.length === 0) {
+			const defaultValue = getInitialPrefValue(key);
+			const defaultRecord: PrefRecord<K> = [makeScope({}), defaultValue, {}];
+			if (!this.profile.preferences[key]) {
+				this.profile.preferences[key] = [];
+			}
+			this.profile.preferences[key].push(defaultRecord);
+			this.save();
+			return defaultRecord;
+		}
+
 		if (currentAccount == null) {
 			const record = records.find(([scope, v]) => parseScope(scope).account == null);
 
@@ -418,6 +430,7 @@ export class PreferencesManager extends EventEmitter<PreferencesManagerEvents> {
 	public isAccountOverrided<K extends keyof PREF>(key: K): boolean {
 		const currentAccount = this.currentAccount; // TSを黙らせるため
 		if (currentAccount == null) return false;
+		if (!this.profile.preferences[key]) return false;
 		return this.profile.preferences[key].some(([scope, v]) => parseScope(scope).server === host && parseScope(scope).account === currentAccount.id);
 	}
 

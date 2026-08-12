@@ -291,6 +291,9 @@ export const PREF_DEF = definePreferences({
 	showAvatarDecorations: {
 		default: true,
 	},
+	showRemoteAvatarDecorations: {
+		default: false,
+	},
 	mutedAvatarDecorationUsers: {
 		accountDependent: true,
 		default: [] as string[],
