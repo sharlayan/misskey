@@ -128,6 +128,12 @@ type AdminAnnouncementsListResponse = operations['admin___announcements___list']
 type AdminAnnouncementsUpdateRequest = operations['admin___announcements___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type AdminAvatarDecorationsCopyRequest = operations['admin___avatar-decorations___copy']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminAvatarDecorationsCopyResponse = operations['admin___avatar-decorations___copy']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminAvatarDecorationsCreateRequest = operations['admin___avatar-decorations___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -135,6 +141,12 @@ type AdminAvatarDecorationsCreateResponse = operations['admin___avatar-decoratio
 
 // @public (undocumented)
 type AdminAvatarDecorationsDeleteRequest = operations['admin___avatar-decorations___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminAvatarDecorationsListRemoteRequest = operations['admin___avatar-decorations___list-remote']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AdminAvatarDecorationsListRemoteResponse = operations['admin___avatar-decorations___list-remote']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type AdminAvatarDecorationsListRequest = operations['admin___avatar-decorations___list']['requestBody']['content']['application/json'];
@@ -1565,11 +1577,15 @@ declare namespace entities {
         AdminAnnouncementsListRequest,
         AdminAnnouncementsListResponse,
         AdminAnnouncementsUpdateRequest,
+        AdminAvatarDecorationsCopyRequest,
+        AdminAvatarDecorationsCopyResponse,
         AdminAvatarDecorationsCreateRequest,
         AdminAvatarDecorationsCreateResponse,
         AdminAvatarDecorationsDeleteRequest,
         AdminAvatarDecorationsListRequest,
         AdminAvatarDecorationsListResponse,
+        AdminAvatarDecorationsListRemoteRequest,
+        AdminAvatarDecorationsListRemoteResponse,
         AdminAvatarDecorationsUpdateRequest,
         AdminCaptchaCurrentResponse,
         AdminCaptchaSaveRequest,

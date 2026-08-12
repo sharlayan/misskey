@@ -83,7 +83,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 						<SearchMarker :keywords="['remote', 'avatar', 'icon', 'decoration', 'show']">
 							<MkPreferenceContainer k="showRemoteAvatarDecorations">
-								<MkSwitch v-model="showRemoteAvatarDecorations">
+								<MkSwitch v-model="showRemoteAvatarDecorations" :disabled="!showAvatarDecorations">
 									<template #label><SearchLabel>{{ i18n.ts.showRemoteAvatarDecorations }}</SearchLabel></template>
 								</MkSwitch>
 							</MkPreferenceContainer>

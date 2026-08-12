@@ -197,7 +197,18 @@ declare module '../api.js' {
 
     /**
      * No description provided.
-     * 
+     *
+     * **Credential required**: *Yes* / **Permission**: *write:admin:avatar-decorations*
+     */
+    request<E extends 'admin/avatar-decorations/copy', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *Yes* / **Permission**: *write:admin:avatar-decorations*
      */
     request<E extends 'admin/avatar-decorations/create', P extends Endpoints[E]['req']>(
@@ -231,6 +242,17 @@ declare module '../api.js' {
     /**
      * No description provided.
      * 
+     * **Credential required**: *Yes* / **Permission**: *read:admin:avatar-decorations*
+     */
+    request<E extends 'admin/avatar-decorations/list-remote', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     *
      * **Credential required**: *Yes* / **Permission**: *write:admin:avatar-decorations*
      */
     request<E extends 'admin/avatar-decorations/update', P extends Endpoints[E]['req']>(
