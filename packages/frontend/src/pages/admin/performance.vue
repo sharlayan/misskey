@@ -53,6 +53,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</SearchMarker>
 
+				<SearchMarker :keywords="['federation', 'avatar', 'decoration', 'import']">
+					<div class="_panel" style="padding: 16px;">
+						<MkSwitch v-model="enableFederatedAvatarDecorations" @change="onChange_enableFederatedAvatarDecorations">
+							<template #label><SearchLabel>{{ i18n.ts.enableFederatedAvatarDecorations }}</SearchLabel></template>
+							<template #caption><SearchText>{{ i18n.ts.enableFederatedAvatarDecorationsDescription }}</SearchText></template>
+						</MkSwitch>
+					</div>
+				</SearchMarker>
+
 				<SearchMarker>
 					<div class="_panel" style="padding: 16px;">
 						<MkSwitch v-model="showRoleBadgesOfRemoteUsers" @change="onChange_showRoleBadgesOfRemoteUsers">
@@ -197,6 +206,7 @@ const enableIdenticonGeneration = ref(meta.enableIdenticonGeneration);
 const enableChartsForRemoteUser = ref(meta.enableChartsForRemoteUser);
 const enableStatsForFederatedInstances = ref(meta.enableStatsForFederatedInstances);
 const enableChartsForFederatedInstances = ref(meta.enableChartsForFederatedInstances);
+const enableFederatedAvatarDecorations = ref(meta.enableFederatedAvatarDecorations);
 const showRoleBadgesOfRemoteUsers = ref(meta.showRoleBadgesOfRemoteUsers);
 
 function onChange_enableServerMachineStats(value: boolean) {
@@ -234,6 +244,14 @@ function onChange_enableStatsForFederatedInstances(value: boolean) {
 function onChange_enableChartsForFederatedInstances(value: boolean) {
 	os.apiWithDialog('admin/update-meta', {
 		enableChartsForFederatedInstances: value,
+	}).then(() => {
+		fetchInstance(true);
+	});
+}
+
+function onChange_enableFederatedAvatarDecorations(value: boolean) {
+	os.apiWithDialog('admin/update-meta', {
+		enableFederatedAvatarDecorations: value,
 	}).then(() => {
 		fetchInstance(true);
 	});

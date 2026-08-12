@@ -4533,6 +4533,14 @@ export interface Locale extends ILocale {
      */
     "enableStatsForFederatedInstances": string;
     /**
+     * 連合からアイコンデコレーションを取得
+     */
+    "enableFederatedAvatarDecorations": string;
+    /**
+     * 対応するリモートサーバーのユーザー情報を更新するとき、アイコンデコレーションを取得します。オフにしても、取得済みのデコレーションは削除されません。
+     */
+    "enableFederatedAvatarDecorationsDescription": string;
+    /**
      * ノートのアクションにクリップを追加
      */
     "showClipButtonInNoteFooter": string;

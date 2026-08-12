@@ -7,6 +7,7 @@ import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { IsNull } from 'typeorm';
 import type { AvatarDecorationsRepository, InstancesRepository, UsersRepository, MiAvatarDecoration, MiUser } from '@/models/_.js';
+import type { MiMeta } from '@/models/Meta.js';
 import type Logger from '@/logger.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -120,6 +121,9 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 	constructor(
 		@Inject(DI.config)
 		private config: Config,
+
+		@Inject(DI.meta)
+		private meta: MiMeta,
 
 		@Inject(DI.redisForSub)
 		private redisForSub: Redis.Redis,
@@ -268,7 +272,7 @@ export class AvatarDecorationService implements OnApplicationShutdown {
 
 	@bindThis
 	public async remoteUserUpdate(user: MiUser): Promise<void> {
-		if (user.host == null) return;
+		if (!this.meta.enableFederatedAvatarDecorations || user.host == null) return;
 
 		const instance = await this.instancesRepository.findOneBy({ host: user.host });
 		const softwareName = instance?.softwareName?.toLowerCase();

@@ -1130,6 +1130,8 @@ retryAllQueuesConfirmText: "一時的にサーバーの負荷が増大するこ�
 enableChartsForRemoteUser: "リモートユーザーのチャートを生成"
 enableChartsForFederatedInstances: "リモートサーバーのチャートを生成"
 enableStatsForFederatedInstances: "リモートサーバーの情報を取得"
+enableFederatedAvatarDecorations: "連合からアイコンデコレーションを取得"
+enableFederatedAvatarDecorationsDescription: "対応するリモートサーバーのユーザー情報を更新するとき、アイコンデコレーションを取得します。オフにしても、取得済みのデコレーションは削除されません。"
 showClipButtonInNoteFooter: "ノートのアクションにクリップを追加"
 reactionsDisplaySize: "リアクションの表示サイズ"
 limitWidthOfReaction: "リアクションの最大横幅を制限し、縮小して表示する"

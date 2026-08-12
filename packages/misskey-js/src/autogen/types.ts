@@ -9759,6 +9759,7 @@ export interface operations {
                         enableChartsForRemoteUser: boolean;
                         enableChartsForFederatedInstances: boolean;
                         enableStatsForFederatedInstances: boolean;
+                        enableFederatedAvatarDecorations: boolean;
                         enableServerMachineStats: boolean;
                         enableIdenticonGeneration: boolean;
                         manifestJsonOverride: string;
@@ -13301,6 +13302,7 @@ export interface operations {
                     enableChartsForRemoteUser?: boolean;
                     enableChartsForFederatedInstances?: boolean;
                     enableStatsForFederatedInstances?: boolean;
+                    enableFederatedAvatarDecorations?: boolean;
                     enableServerMachineStats?: boolean;
                     enableIdenticonGeneration?: boolean;
                     serverRules?: string[];

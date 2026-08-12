@@ -44,6 +44,7 @@ describe('AvatarDecorationService', () => {
 
 		service = new AvatarDecorationService(
 			{ mediaProxy: 'https://media.example.com' } as never,
+			{ enableFederatedAvatarDecorations: true } as never,
 			{ on: vi.fn(), off: vi.fn() } as never,
 			avatarDecorationsRepository as never,
 			{ findOneBy: vi.fn().mockResolvedValue({ host: 'remote.example', softwareName: 'misskey' }) } as never,
@@ -61,6 +62,15 @@ describe('AvatarDecorationService', () => {
 
 		await service.remoteUserUpdate({ id: 'user-id', host: 'remote.example', username: 'alice' } as MiUser);
 
+		expect(usersRepository.update).not.toHaveBeenCalled();
+	});
+
+	test('does not fetch remote decorations when federation import is disabled', async () => {
+		(service as unknown as { meta: { enableFederatedAvatarDecorations: boolean } }).meta.enableFederatedAvatarDecorations = false;
+
+		await service.remoteUserUpdate({ id: 'user-id', host: 'remote.example', username: 'alice' } as MiUser);
+
+		expect(httpRequestService.send).not.toHaveBeenCalled();
 		expect(usersRepository.update).not.toHaveBeenCalled();
 	});
 

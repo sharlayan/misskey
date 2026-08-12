@@ -552,6 +552,11 @@ export class MiMeta {
 	@Column('boolean', {
 		default: false,
 	})
+	public enableFederatedAvatarDecorations: boolean;
+
+	@Column('boolean', {
+		default: false,
+	})
 	public enableServerMachineStats: boolean;
 
 	@Column('boolean', {

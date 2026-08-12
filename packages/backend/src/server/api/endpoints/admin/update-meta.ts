@@ -150,6 +150,7 @@ export const paramDef = {
 		enableChartsForRemoteUser: { type: 'boolean' },
 		enableChartsForFederatedInstances: { type: 'boolean' },
 		enableStatsForFederatedInstances: { type: 'boolean' },
+		enableFederatedAvatarDecorations: { type: 'boolean' },
 		enableServerMachineStats: { type: 'boolean' },
 		enableIdenticonGeneration: { type: 'boolean' },
 		serverRules: { type: 'array', items: { type: 'string' } },
@@ -637,6 +638,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (ps.enableStatsForFederatedInstances !== undefined) {
 				set.enableStatsForFederatedInstances = ps.enableStatsForFederatedInstances;
+			}
+
+			if (ps.enableFederatedAvatarDecorations !== undefined) {
+				set.enableFederatedAvatarDecorations = ps.enableFederatedAvatarDecorations;
 			}
 
 			if (ps.enableServerMachineStats !== undefined) {
