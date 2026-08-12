@@ -229,7 +229,11 @@ export function note(id = 'somenoteid'): entities.Note {
 	return {
 		id,
 		createdAt: '2016-12-28T22:49:51.000Z',
+		updatedAt: null,
 		deletedAt: null,
+		isEdited: false,
+		editCount: 0,
+		latestEditedAt: null,
 		text: 'some note',
 		cw: null,
 		userId: 'someuserid',

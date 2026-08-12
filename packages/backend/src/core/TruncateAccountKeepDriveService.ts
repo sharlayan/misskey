@@ -29,5 +29,3 @@ export class TruncateAccountKeepDriveService {
     this.queueService.createTruncateAccountKeepDriveJob(user, { keepFavorites });
   }
 }
-
-

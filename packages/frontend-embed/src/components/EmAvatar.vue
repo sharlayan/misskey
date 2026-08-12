@@ -22,23 +22,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 	</div>
-	<img
-		v-for="decoration in user.avatarDecorations"
-		v-if="!$attrs?.mutedAvatarDecorationUsers?.includes?.(user.id)"
-		:class="[$style.decoration]"
-		:src="getDecorationUrl(decoration)"
-		:style="{
-			rotate: getDecorationAngle(decoration),
-			scale: getDecorationScale(decoration),
-			translate: getDecorationOffset(decoration),
-		}"
-		alt=""
-	>
+	<template v-if="showDecorations">
+		<img
+			v-for="decoration in user.avatarDecorations"
+			:class="[$style.decoration]"
+			:src="getDecorationUrl(decoration)"
+			:style="{
+				rotate: getDecorationAngle(decoration),
+				scale: getDecorationScale(decoration),
+				translate: getDecorationOffset(decoration),
+			}"
+			alt=""
+		>
+	</template>
 </component>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, useAttrs } from 'vue';
 import * as Misskey from 'misskey-js';
 import EmImgWithBlurhash from './EmImgWithBlurhash.vue';
 import EmA from './EmA.vue';
@@ -58,6 +59,9 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
 	(ev: 'click', v: MouseEvent): void;
 }>();
+
+const attrs = useAttrs();
+const showDecorations = computed(() => !(attrs.mutedAvatarDecorationUsers as string[] | undefined)?.includes(props.user.id));
 
 const bound = computed(() => props.link
 	? { to: userPage(props.user) }

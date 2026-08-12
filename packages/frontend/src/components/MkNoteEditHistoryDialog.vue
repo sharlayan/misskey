@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@closed="emit('closed')"
 >
 	<template #header>
-		<i class="ti ti-history"></i> {{ i18n.ts.editHistory }}
+		<i class="ti ti-history"></i> {{ i18n.ts.viewEditHistory }}
 	</template>
 
 	<div :class="$style.root">
@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-else-if="history.length === 0" :class="$style.empty">
 			<div :class="$style.emptyIcon"><i class="ti ti-mood-empty"></i></div>
-			<div>{{ i18n.ts.noEditHistory }}</div>
+			<div>{{ i18n.ts.noHistory }}</div>
 		</div>
 		<div v-else :class="$style.timeline">
 			<div
@@ -37,20 +37,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.revisionMeta">
 						<div :class="$style.revisionNumber">
 							<i class="ti ti-circle-dot"></i>
-							<span v-if="index === 0">{{ i18n.ts.current }}</span>
-							<span v-else>{{ i18n.tsx.editVersion({ n: revision.version }) }}</span>
+							<span v-if="index === 0">{{ i18n.ts.currentVersion }}</span>
+							<span v-else :class="$style.version">
+								<span>{{ i18n.ts.version }}</span>
+								<span>{{ revision.version }}</span>
+							</span>
 						</div>
 						<MkTime :time="revision.createdAt" mode="detail"/>
-					</div>
-					<div v-if="revision.editor" :class="$style.revisionEditor">
-						<MkAvatar :user="revision.editor" :class="$style.editorAvatar" link preview/>
-						<MkUserName :user="revision.editor"/>
 					</div>
 				</div>
 
 				<div v-if="selectedRevision === index" :class="$style.revisionContent">
 					<div v-if="revision.payload.cw !== undefined" :class="$style.field">
-						<div :class="$style.fieldLabel">{{ i18n.ts.cw }}</div>
+						<div :class="$style.fieldLabel">CW</div>
 						<div :class="$style.fieldValue">
 							<Mfm v-if="revision.payload.cw" :text="revision.payload.cw" :plain="false"/>
 							<span v-else :class="$style.empty">{{ i18n.ts.none }}</span>
@@ -75,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="revision.payload.fileIds !== undefined && revision.payload.fileIds.length > 0" :class="$style.field">
 						<div :class="$style.fieldLabel">{{ i18n.ts.files }}</div>
 						<div :class="$style.fieldValue">
-							{{ i18n.tsx.nFiles({ n: revision.payload.fileIds.length }) }}
+							{{ i18n.tsx.withNFiles({ n: revision.payload.fileIds.length }) }}
 						</div>
 					</div>
 
@@ -91,7 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="index < history.length - 1" :class="$style.diffSection">
 						<div :class="$style.diffLabel">
 							<i class="ti ti-git-compare"></i>
-							{{ i18n.ts.changes }}
+							{{ i18n.ts.modified }}
 						</div>
 						<div :class="$style.diffContent">
 							<div v-for="change in getChanges(index)" :key="change.field" :class="$style.change">
@@ -121,8 +120,6 @@ import { ref, onMounted } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkLoading from '@/components/global/MkLoading.vue';
-import MkAvatar from '@/components/global/MkAvatar.vue';
-import MkUserName from '@/components/global/MkUserName.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
 
@@ -147,11 +144,10 @@ type NoteRevision = {
 	version: number;
 	createdAt: string;
 	editorId: string;
-	editor?: Misskey.entities.UserDetailed;
 	payload: {
 		cw?: string | null;
 		text?: string | null;
-		visibility?: string;
+		visibility?: Misskey.entities.Note['visibility'];
 		fileIds?: string[];
 		poll?: {
 			choices: string[];
@@ -173,7 +169,6 @@ onMounted(async () => {
 				version: 0,
 				createdAt: props.currentNote.updatedAt ?? props.currentNote.createdAt,
 				editorId: props.currentNote.userId,
-				editor: props.currentNote.user,
 				payload: {
 					cw: props.currentNote.cw,
 					text: props.currentNote.text,
@@ -198,8 +193,7 @@ onMounted(async () => {
 				version: revision.version,
 				createdAt: revision.createdAt,
 				editorId: revision.editorId,
-				editor: revision.editor,
-				payload: revision.payload,
+				payload: revision.payload as NoteRevision['payload'],
 			});
 		}
 	} catch (e) {
@@ -231,7 +225,7 @@ function getChanges(index: number) {
 
 	if (current.payload.cw !== previous.payload.cw) {
 		changes.push({
-			field: i18n.ts.cw,
+			field: 'CW',
 			oldValue: previous.payload.cw ?? i18n.ts.none,
 			newValue: current.payload.cw ?? i18n.ts.none,
 		});
@@ -251,8 +245,6 @@ function getChanges(index: number) {
 
 <style lang="scss" module>
 .root {
-	overflow: auto;
-	height: 100%;
 	padding: 16px;
 }
 
@@ -320,6 +312,11 @@ function getChanges(index: number) {
 	gap: 8px;
 	font-weight: bold;
 	color: var(--MI_THEME-accent);
+}
+
+.version {
+	display: inline-flex;
+	gap: 0.25em;
 }
 
 .revisionEditor {

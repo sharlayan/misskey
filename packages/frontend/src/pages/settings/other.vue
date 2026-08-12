@@ -67,17 +67,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 					<div class="_gaps_m">
 						<FormInfo warn>{{ i18n.ts._accountTruncate.mayTakeTime }}</FormInfo>
-						
 						<MkSwitch v-model="truncateKeepDrive">
 							<template #label>{{ i18n.ts.autoDeleteKeepDriveFiles }}</template>
-							<template #caption>{{ i18n.ts._accountTruncate.keepDriveDescription }}</template>
+							<template #caption>{{ i18n.ts.autoDeleteKeepDriveFilesDescription }}</template>
 						</MkSwitch>
-						
 						<MkSwitch v-model="truncateKeepFavorites">
 							<template #label>{{ i18n.ts.autoDeleteKeepFavorites }}</template>
-							<template #caption>{{ i18n.ts._accountTruncate.keepFavoritesDescription }}</template>
+							<template #caption>{{ i18n.ts.autoDeleteKeepFavoritesDescription }}</template>
 						</MkSwitch>
-						
 						<MkButton v-if="!$i.isDeleted" danger @click="requestTruncateAccount">{{ i18n.ts._accountTruncate.requestAccountTruncate }}</MkButton>
 						<MkButton v-else disabled>{{ i18n.ts._accountTruncate.inProgress }}</MkButton>
 					</div>
@@ -169,17 +166,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkButton v-if="storagePersistenceSupported && !storagePersisted" @click="enableStoragePersistence">{{ i18n.ts._settings.settingsPersistence_title }}</MkButton>
 
 		<MkButton @click="forceCloudBackup">{{ i18n.ts._preferencesBackup.forceBackup }}</MkButton>
-
-		<FormSlot>
-			<MkButton danger @click="migrate"><i class="ti ti-refresh"></i> {{ i18n.ts.migrateOldSettings }}</MkButton>
-			<template #caption>{{ i18n.ts.migrateOldSettings_description }}</template>
-		</FormSlot>
 	</div>
 </SearchMarker>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import XMigration from './migration.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import FormLink from '@/components/form/link.vue';
@@ -187,17 +179,14 @@ import MkFolder from '@/components/MkFolder.vue';
 import FormInfo from '@/components/MkInfo.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import MkButton from '@/components/MkButton.vue';
-import FormSlot from '@/components/form/slot.vue';
 import * as os from '@/os.js';
 import { enableStoragePersistence, getStoragePersistenceStatusRef, storagePersistenceSupported } from '@/utility/storage.js';
 import { ensureSignin } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import { definePage } from '@/page.js';
-import FormSection from '@/components/form/section.vue';
 import { prefer } from '@/preferences.js';
 import MkRolePreview from '@/components/MkRolePreview.vue';
 import { signout } from '@/signout.js';
-import { migrateOldSettings } from '@/pref-migrate.js';
 import { hideAllTips as _hideAllTips, resetAllTips as _resetAllTips } from '@/tips.js';
 import { suggestReload } from '@/utility/reload-suggest.js';
 import { cloudBackup } from '@/preferences/utility.js';
@@ -214,7 +203,6 @@ const stackingRouterView = prefer.model('experimental.stackingRouterView');
 const enableFolderPageView = prefer.model('experimental.enableFolderPageView');
 const enableHapticFeedback = prefer.model('experimental.enableHapticFeedback');
 const enableWebTranslatorApi = prefer.model('experimental.enableWebTranslatorApi');
-
 const truncateKeepDrive = ref(false);
 const truncateKeepFavorites = ref(false);
 
@@ -246,85 +234,26 @@ async function deleteAccount() {
 	await signout();
 }
 
-async function truncateAccount() {
-	{
-		const { canceled } = await os.confirm({
-			type: 'warning',
-			text: i18n.ts.truncateAccountConfirm,
-		});
-		if (canceled) return;
-	}
-
-	const auth = await os.authenticateDialog();
-	if (auth.canceled) return;
-
-	await os.apiWithDialog('i/truncate-account', {
-		password: auth.result.password,
-		token: auth.result.token,
-	});
-
-	await os.alert({
-		title: i18n.ts._accountTruncate.started,
-	});
-}
-
-async function truncateAccountKeepDrive() {
-	{
-		const { canceled } = await os.confirm({
-			type: 'warning',
-			text: i18n.ts.truncateAccountConfirm,
-		});
-		if (canceled) return;
-	}
-
-	const auth = await os.authenticateDialog();
-	if (auth.canceled) return;
-
-	await os.apiWithDialog('i/truncate-account-keep-drive', {
-		password: auth.result.password,
-		token: auth.result.token,
-	});
-
-	await os.alert({
-		title: i18n.ts._accountTruncate.started,
-	});
-}
-
 async function requestTruncateAccount() {
-	{
-		const { canceled } = await os.confirm({
-			type: 'warning',
-			text: i18n.ts.truncateAccountConfirm,
-		});
-		if (canceled) return;
-	}
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts.truncateAccountConfirm,
+	});
+	if (canceled) return;
 
 	const auth = await os.authenticateDialog();
 	if (auth.canceled) return;
 
-	// 드라이브 유지 옵션이 켜져 있으면 truncate-account-keep-drive API 호출
-	if (truncateKeepDrive.value) {
-		await os.apiWithDialog('i/truncate-account-keep-drive', {
-			password: auth.result.password,
-			token: auth.result.token,
-			keepFavorites: truncateKeepFavorites.value,
-		});
-	} else {
-		// 드라이브도 삭제하는 일반 truncate (즐겨찾기 보호 옵션 포함)
-		await os.apiWithDialog('i/truncate-account', {
-			password: auth.result.password,
-			token: auth.result.token,
-			keepFavorites: truncateKeepFavorites.value,
-		});
-	}
+	const endpoint = truncateKeepDrive.value ? 'i/truncate-account-keep-drive' : 'i/truncate-account';
+	await os.apiWithDialog(endpoint, {
+		password: auth.result.password,
+		token: auth.result.token,
+		keepFavorites: truncateKeepFavorites.value,
+	});
 
 	await os.alert({
 		title: i18n.ts._accountTruncate.started,
 	});
-}
-
-function migrate() {
-	migrateOldSettings();
 }
 
 function resetAllTips() {

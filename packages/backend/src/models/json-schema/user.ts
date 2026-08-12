@@ -400,10 +400,6 @@ export const packedUserDetailedNotMeOnlySchema = {
 			type: 'boolean',
 			nullable: false, optional: true,
 		},
-		bridgeHomeVisibility: {
-			type: 'boolean',
-			nullable: false, optional: false,
-		},
 		//#region relations
 		isFollowing: {
 			type: 'boolean',
@@ -705,6 +701,14 @@ export const packedMeDetailedOnlySchema = {
 			nullable: true, optional: false,
 		},
 		autoDeleteKeepFavorites: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
+		autoDeleteKeepDriveFiles: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
+		bridgeHomeVisibility: {
 			type: 'boolean',
 			nullable: false, optional: false,
 		},
